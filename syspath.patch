@@ -1,0 +1,42 @@
+If your jupiterhub is not installed in /usr/local/ but a different directory
+(here /usr/local/jupyter/), jupiterhub would use blindly data and extensions
+from /usr/local/share/jupyter and /usr/local/etc/jupyter which do not belong
+to it and thus may cause instability or security incidents. Therefore you
+should adjust the path to use in all lines starting with a '+' and apply this
+patch. E.g.:
+
+cd /usr/local/jupyter/
+patch -p1 -i this_file
+
+--- jupyter/lib/python3.10/site-packages/jupyter_core/paths.py.orig	2024-07-11 19:34:13.208701521 +0000
++++ jupyter/lib/python3.10/site-packages/jupyter_core/paths.py	2024-08-08 23:31:27.393437329 +0000
+@@ -222,7 +222,7 @@
+             SYSTEM_JUPYTER_PATH = [str(Path(sys.prefix, "share", "jupyter"))]
+     else:
+         SYSTEM_JUPYTER_PATH = [
+-            "/usr/local/share/jupyter",
++            "/usr/local/jupyter/share/jupyter",
+             "/usr/share/jupyter",
+         ]
+ 
+@@ -246,9 +246,9 @@
+     Examples:
+ 
+     >>> jupyter_path()
+-    ['~/.local/jupyter', '/usr/local/share/jupyter']
++    ['~/.local/jupyter', '/usr/local/jupyter/share/jupyter']
+     >>> jupyter_path('kernels')
+-    ['~/.local/jupyter/kernels', '/usr/local/share/jupyter/kernels']
++    ['~/.local/jupyter/kernels', '/usr/local/jupyter/share/jupyter/kernels']
+     """
+ 
+     paths: list[str] = []
+@@ -301,7 +301,7 @@
+             SYSTEM_CONFIG_PATH = []
+     else:
+         SYSTEM_CONFIG_PATH = [
+-            "/usr/local/etc/jupyter",
++            "/usr/local/jupyter/etc/jupyter",
+             "/etc/jupyter",
+         ]
+ ENV_CONFIG_PATH: list[str] = [str(Path(sys.prefix, "etc", "jupyter"))]

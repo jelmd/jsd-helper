@@ -1,0 +1,24 @@
+# /etc/systemd/system/jhub.service
+[Unit]
+Description=Jupyterhub
+After=network.target auditd.service
+
+[Service]
+Type=forking
+User=juppy
+WorkingDirectory=~
+Environment='LOGLEVEL=WARN'
+EnvironmentFile=-/etc/default/jhub
+RuntimeDirectory=jhub
+ExecStart=/usr/local/etc/run-jhub.sh ${LOGLEVEL}
+
+StartLimitBurst=5
+StartLimitInterval=10
+Restart=always
+RestartSec=1
+
+ExecStop=/bin/kill -s SIGHUP $MAINPID
+TimeoutSec=10
+
+[Install]
+WantedBy=multi-user.target

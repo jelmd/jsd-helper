@@ -1,0 +1,89 @@
+--- jupyter/lib/python3.10/site-packages/systemdspawner/systemd.py.orig	2024-07-11 19:34:22.528701624 +0000
++++ jupyter/lib/python3.10/site-packages/systemdspawner/systemd.py	2024-08-15 04:22:25.672464103 +0000
+@@ -23,28 +23,28 @@
+ def ensure_environment_directory(environment_file_directory):
+     """Ensure directory for environment files exists and is private"""
+     # ensure directory exists
+-    os.makedirs(environment_file_directory, mode=0o700, exist_ok=True)
++    os.makedirs(environment_file_directory, mode=0o755, exist_ok=True)
+     # validate permissions
+     mode = os.stat(environment_file_directory).st_mode
+-    if mode & 0o077:
++    if mode & 0o022:
+         warnings.warn(
+             f"Fixing permissions on environment directory {environment_file_directory}: {oct(mode)}",
+             RuntimeWarning,
+         )
+-        os.chmod(environment_file_directory, 0o700)
++        os.chmod(environment_file_directory, 0o755)
+     else:
+         return
+     # Check again after supposedly fixing.
+     # Some filesystems can have weird issues, preventing this from having desired effect
+     mode = os.stat(environment_file_directory).st_mode
+-    if mode & 0o077:
++    if mode & 0o022:
+         warnings.warn(
+             f"Bad permissions on environment directory {environment_file_directory}: {oct(mode)}",
+             RuntimeWarning,
+         )
+ 
+ 
+-def make_environment_file(environment_file_directory, unit_name, environment_variables):
++def make_environment_file(environment_file_directory, unit_name, environment_variables, uid=None):
+     """Make a systemd environment file
+ 
+     - ensures environment directory exists and is private
+@@ -62,6 +62,8 @@
+         # make the file itself private as well
+         os.fchmod(f.fileno(), 0o400)
+         f.write("\n".join(env_lines))
++        if uid is not None:
++            os.system('/bin/setfacl -m u:' + str(uid) + ':-r- ' + env_file)
+ 
+     return env_file
+ 
+@@ -86,6 +88,7 @@
+     """
+ 
+     run_cmd = [
++        "jsd-helper",
+         "systemd-run",
+         "--unit",
+         unit_name,
+@@ -110,7 +113,7 @@
+     # ref: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#RuntimeDirectoryPreserve=
+     #
+     properties.setdefault("RuntimeDirectory", unit_name)
+-    properties.setdefault("RuntimeDirectoryMode", "700")
++    properties.setdefault("RuntimeDirectoryMode", "755")
+     properties.setdefault("RuntimeDirectoryPreserve", "restart")
+ 
+     # Ensure that out of memory killing of a process run inside the user server
+@@ -141,7 +144,7 @@
+     if environment_variables:
+         runtime_dir = os.path.join(RUN_ROOT, properties["RuntimeDirectory"].split()[0])
+         environment_file = make_environment_file(
+-            runtime_dir, unit_name, environment_variables
++            runtime_dir, unit_name, environment_variables, uid
+         )
+         run_cmd.append(f"--property=EnvironmentFile={environment_file}")
+ 
+@@ -209,7 +212,7 @@
+ 
+     Throws CalledProcessError if stopping fails
+     """
+-    proc = await asyncio.create_subprocess_exec("systemctl", "stop", unit_name)
++    proc = await asyncio.create_subprocess_exec("jsd-helper", "systemctl", "stop", unit_name)
+     await proc.wait()
+ 
+ 
+@@ -219,7 +222,7 @@
+ 
+     Throws CalledProcessError if resetting fails
+     """
+-    proc = await asyncio.create_subprocess_exec("systemctl", "reset-failed", unit_name)
++    proc = await asyncio.create_subprocess_exec("jsd-helper", "systemctl", "reset-failed", unit_name)
+     await proc.wait()
+ 
+ 
